@@ -1398,7 +1398,7 @@ DEF FLOOR Solid {
   }
   locked TRUE
 }
-Pioneer2 {
+Pioneer2_Robot {
   translation 0 0 -9.05
   rotation 0 1 0 3.141592653589793
   controller "fool_controller"
@@ -1406,7 +1406,7 @@ Pioneer2 {
     Compass {
     }
     GPS {
-      resolution 3
+      resolution -1
     }
     DEF SPHERICAL_CAMERA Camera {
       translation 0.025 0.44 -0.05

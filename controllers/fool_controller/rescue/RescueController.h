@@ -8,6 +8,7 @@
 #include "../mapping/MapCatalog.h"
 #include "../mapping/MapMatcher.h"
 #include "../mission/MissionManager.h"
+#include "../navigation/ObstacleAvoidance.h"
 #include "../navigation/Navigator.h"
 #include "../perception/VictimDetector.h"
 #include "../planning/AStarPlanner.h"
@@ -27,6 +28,7 @@ private:
   MapMatcher _mapMatcher;
   AStarPlanner _planner;
   Navigator _navigator;
+  ObstacleAvoidance _obstacleAvoidance;
   MissionManager _missionManager;
   MotorController _motorController;
 };

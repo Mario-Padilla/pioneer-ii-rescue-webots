@@ -68,6 +68,7 @@
 ### Do not modify: this includes Webots global Makefile.include
 CXX_SOURCES = fool_controller.cpp \
               rescue/RescueController.cpp \
+              sensors/DistanceSensorCalibration.cpp \
               sensors/SensorManager.cpp \
               perception/VictimDetector.cpp \
               localization/Localization.cpp \

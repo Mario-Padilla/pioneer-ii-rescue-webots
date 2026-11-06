@@ -55,10 +55,10 @@ Los `.h` declaran tipos e interfaces; los `.cpp` contienen su implementación. `
 | `controllers/fool_controller/Makefile` | Enumera todos los `.cpp` del controlador y los enlaza con el Makefile de Webots. | Compila el esqueleto. |
 | `config/RobotConfig.h` | Nombres de motores, encoders, cámaras y sensores; límites de velocidad, geometría y parámetros de cuadrícula/matching. | Constantes iniciales; umbrales pendientes de calibración. |
 | `rescue/RescueController.h` | Declara el coordinador y sus dependencias: robot Webots, sensores, mapa, localización, misión, navegación y motores. | Interfaces conectadas como miembros. |
-| `rescue/RescueController.cpp` | Obtiene el timestep, inicializa el control de motores/sensores y ejecuta el bucle de pasos Webots. | El bucle solo detiene el robot; el flujo de misión está pendiente. |
-| `sensors/SensorSnapshot.h` | Estructura común para pose/sensores: GPS X/Z, rumbo, encoders, validez y 16 distancias. | Tipo declarado; sus campos no se rellenan todavía. |
-| `sensors/SensorManager.h` | Interfaz para habilitar, leer y apagar dispositivos Webots. | Declaraciones preparadas. |
-| `sensors/SensorManager.cpp` | Debe adquirir los dispositivos, convertir lecturas a unidades físicas y filtrar ruido. | Constructor presente; `initialize`, `read` y `shutdown` aún son esqueletos. |
+| `rescue/RescueController.cpp` | Obtiene el timestep, inicializa el control de motores/sensores y ejecuta el bucle de pasos Webots. | Comprueba sensores, muestra snapshots periódicos y guarda una captura inicial por cámara; el flujo de misión está pendiente. |
+| `sensors/SensorSnapshot.h` | Estructura común para pose/sensores: GPS X/Z, rumbo, encoders, respuestas brutas de rango y distancias estimadas. | Conserva respuesta bruta y estimación en metros, marca ausencia/saturación y calcula sectores en ambos formatos. |
+| `sensors/SensorManager.h` | Interfaz para habilitar, leer y apagar dispositivos Webots; expone las cámaras para percepción. | Interfaz conectada a los dispositivos del Pioneer II. |
+| `sensors/SensorManager.cpp` | Adquiere los dispositivos, habilita/deshabilita sensores y captura lecturas. | Inicializa todos los dispositivos e invierte por interpolación los perfiles de tabla de los 16 láseres; el filtrado temporal y la validación con medidas conocidas quedan pendientes. |
 | `localization/Localization.h` | Define `Pose2D` (X, Z, rumbo) y la interfaz para pose actual y pose inicial capturada. | Tipos e interfaz declarados. |
 | `localization/Localization.cpp` | Debe fusionar GPS, brújula y odometría de encoders, y guardar la pose inicial como referencia de localización. | `update()` todavía devuelve la pose por defecto. |
 | `mapping/OccupancyGrid.h` | Define celdas `UNKNOWN/FREE/OCCUPIED`, coordenadas de celda y operaciones de cuadrícula. | Interfaz implementada. |
@@ -74,8 +74,8 @@ Los `.h` declaran tipos e interfaces; los `.cpp` contienen su implementación. `
 | `planning/AStarPlanner.cpp` | Debe implementar A*, política para celdas desconocidas y coste de margen/riesgo. | Devuelve una ruta vacía; algoritmo pendiente. |
 | `navigation/Navigator.h` | Define `WheelCommand` y la interfaz para transformar objetivos/rutas en velocidades de ruedas. | Tipos e interfaz preparados. |
 | `navigation/Navigator.cpp` | Debe seguir waypoints y corregir rumbo/velocidad. | Constructor vacío; navegación pendiente. |
-| `navigation/ObstacleAvoidance.h` | Interfaz de seguridad local basada en distancias. | Declaración preparada. |
-| `navigation/ObstacleAvoidance.cpp` | Debe limitar o modificar el comando de navegación ante obstáculos y desbloquear progreso. | Constructor vacío; algoritmo pendiente. |
+| `navigation/ObstacleAvoidance.h` | Evalúa los sectores láser con los criterios de la práctica 03. | Declara estados de alerta, peligro, pared y giro sugerido a partir de respuestas brutas. |
+| `navigation/ObstacleAvoidance.cpp` | Clasifica sectores y calcula riesgos laterales para elegir un giro. | Umbrales y fórmula de riesgo portados de la práctica 03; todavía no envía comandos a motores. |
 | `perception/VictimDetector.h` | Interfaz de detección de cilindros verdes; deberá entregar confianza, dirección y estimación de distancia. | Interfaz pendiente de definir completamente. |
 | `perception/VictimDetector.cpp` | Debe procesar las cámaras frontal/esférica y confirmar detecciones a través de varios fotogramas. | Constructor vacío; visión pendiente. |
 | `mission/MissionManager.h` | Enumera estados: inicialización, identificación, planificación, búsqueda, acercamiento, señalización, regreso, respaldo y fin. | Estados declarados. |
@@ -91,7 +91,7 @@ Los `.h` declaran tipos e interfaces; los `.cpp` contienen su implementación. `
 Este es el orden recomendado para construir, probar e integrar el software. No describe una secuencia de acciones del robot durante la misión.
 
 - [x] **Preparar el proyecto:** separar módulos, configurar el Makefile y compilar el esqueleto en Webots.
-- [ ] **Validar la interfaz con Webots:** implementar lecturas y ciclo de vida de dispositivos; crear una prueba/registro de sensores.
+- [x] **Validar la interfaz con Webots:** implementar lecturas y ciclo de vida de dispositivos; crear una prueba/registro de sensores.
 - [ ] **Caracterizar y modelar sensores:** verificar convenciones X/Z, rumbo, sectores de los 16 sensores y conversión de distancias; documentar ruido y unidades.
 - [ ] **Implementar localización:** fusionar GPS, brújula y encoders; capturar la pose real del robot al iniciar (no las coordenadas de la línea amarilla) y probarla en movimientos conocidos.
 - [ ] **Crear los mapas de referencia:** escribir la herramienta offline que rasteriza paredes/obstáculos de los diez `.wbt`; validar visualmente las cuadrículas y cargarlas en `MapCatalog`.
@@ -107,8 +107,8 @@ Este es el orden recomendado para construir, probar e integrar el software. No d
 
 ### Objetivo 1 — Sensores, hardware y localización
 
-- [ ] Implementar `SensorManager::initialize`, `read` y `shutdown` para GPS, brújula, encoders y sensores de distancia.
-- [ ] Completar `SensorSnapshot` con lecturas válidas en unidades físicas y documentar el orden/sector de cada sensor.
+- [x] Implementar `SensorManager::initialize`, `read` y `shutdown` para GPS, brújula, encoders, 16 sensores de distancia y ambas cámaras.
+- [x] Completar `SensorSnapshot` con lecturas válidas en unidades físicas y documentar el orden/sector de cada sensor.
 - [ ] Implementar `Localization::update` y almacenar la pose GPS real al iniciar como referencia de localización.
 - [ ] Añadir pruebas/registro de calibración: tras movimientos conocidos, posición y rumbo estimados siguen el movimiento esperado.
 
@@ -176,7 +176,9 @@ El enunciado oficial está en [`docs/enunciado_trabajo_final.pdf`](docs/enunciad
 
 ## Configuración, compilación y ejecución
 
-La cuadrícula está configurada para el recinto de 10 × 20 m, origen X/Z `(-5, -10)` y celdas de 0,2 m (50 × 100). Al rasterizar obstáculos se añadirá margen por el radio del robot y la incertidumbre. Los mundos seleccionan el controlador `fool_controller`; no renombrar su carpeta sin actualizar los mundos.
+La cuadrícula está configurada para el recinto de 10 × 20 m, origen X/Z `(-5, -10)` y celdas de 0,2 m (50 × 100). Al rasterizar obstáculos se añadirá margen por el radio del robot y la incertidumbre. Los diez mundos instancian el PROTO local `Pioneer2_Robot` para usar los perfiles de sensores del proyecto; seleccionan el controlador `fool_controller`, cuyo nombre de carpeta no debe cambiarse sin actualizar los mundos.
+
+Los diez mundos finales configuran el GPS con `resolution -1` para evitar cuantizar la pose; el controlador lee las coordenadas mundiales X/Z en metros.
 
 Con Webots instalado y `WEBOTS_HOME` configurado:
 
@@ -186,6 +188,12 @@ make
 ```
 
 También se puede abrir cualquiera de los mundos y usar **Build** sobre el controlador `fool_controller`.
+
+### Diagnóstico inicial de sensores
+
+El controlador imprime aproximadamente una línea por segundo de simulación con GPS X/Z, rumbo, encoders, respuestas brutas de `ds0`–`ds15`, estimaciones en metros, sectores y las clasificaciones/umbrales brutos de la práctica 03. Los 16 dispositivos son láseres. `ds0`–`ds2` y `ds13`–`ds15` usan el perfil frontal láser de 0,4 m; `ds3` y `ds12` conservan tablas de alcance de 1 m; los demás, tablas de 0,4 m. `>=alcance` indica que no hubo retorno; `<=0,08` y `<=0,20` indican saturación cercana en los perfiles correspondientes. Captura una imagen inicial de cada cámara en `results/sensor_diagnostics/`; esta carpeta es local y está ignorada por Git. La consola indica la ruta completa de las imágenes de cada ejecución.
+
+Para las dos pruebas estáticas, ejecuta primero el mundo en la pose actual. Después coloca el Pioneer en una zona con obstáculos a su alrededor, reinicia la simulación y vuelve a ejecutarlo. Compara las lecturas láser y abre las imágenes `camera_f_*.ppm` y `camera_s_*.ppm` de cada ejecución. Las respuestas brutas de rango se conservan junto a sus estimaciones en metros.
 
 ## Validación y resultados
 
